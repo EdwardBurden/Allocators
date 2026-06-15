@@ -3,19 +3,11 @@
 #include <algorithm>
 #include <cstring>
 
-std::byte* Align(std::byte* marker, size_t alignment)
-{
-	// check alignment provided is multiple first 
-	uintptr_t maxAlignValue = alignment - 1;
-	uintptr_t upperBound = reinterpret_cast<uintptr_t>(marker) + maxAlignValue;
-	uintptr_t mask = ~maxAlignValue;
-	auto alignedAddress = upperBound & mask;
-	return reinterpret_cast<std::byte*>(alignedAddress);
-}
+#include "AllocatorUtils.h"
+#include <cassert>
 
 class StackAllocator
 {
-	static constexpr size_t MAX_STACK_SIZE = 1024 * 1024 * 8; // 8MB
 public:
 	StackAllocator(size_t size);
 	StackAllocator(const StackAllocator& other) = delete;
@@ -24,9 +16,17 @@ public:
 	StackAllocator& operator=(StackAllocator&& other) = delete;
 	~StackAllocator();
 
-	std::byte* Allocate(size_t byteSize, size_t);
+	template<typename T>
+	std::byte* Allocate()
+	{
+		return Allocate(sizeof(T), alignof(T));
+	}
+
+	std::byte* Allocate(size_t size, size_t alignment);
 	void FreeToMarker(std::byte* marker);
+	void Reset();
 private:
+	static constexpr size_t MAX_STACK_SIZE = 1024 * 1024 * 8; // 8MB
 	size_t m_size;
 	std::byte* m_bytes;
 	std::byte* m_marker;
@@ -45,18 +45,10 @@ inline StackAllocator::~StackAllocator()
 	delete[] m_bytes;
 }
 
-inline std::byte* StackAllocator::Allocate(size_t byteSize, size_t alignment = alignof(std::max_align_t))
+inline std::byte* StackAllocator::Allocate(size_t size, size_t alignment = alignof(std::max_align_t))
 {
-	std::byte* alignedCurrentMarker = Align(m_marker, alignment);
-	std::byte* newMarker = alignedCurrentMarker + byteSize;
-	std::byte* max = m_bytes + m_size;
-	if (newMarker > max)
-		return nullptr;
-
-	std::memset(m_marker, 'P', alignedCurrentMarker - m_marker);
-	std::memset(alignedCurrentMarker, 'A', byteSize);
-	m_marker = newMarker;
-	return alignedCurrentMarker;
+	std::byte* limit = m_bytes + m_size;
+	return AllocatorUtils::AllocateUp(m_marker, limit, size, alignment);
 }
 
 inline void StackAllocator::FreeToMarker(std::byte* marker)
@@ -64,12 +56,17 @@ inline void StackAllocator::FreeToMarker(std::byte* marker)
 	if (marker == nullptr)
 		return;
 
-	auto offset = m_marker - marker;
-	auto newMarker = m_marker - offset;
-	auto max = m_bytes + m_size;
-	if (newMarker < m_bytes || newMarker >max)
+	ptrdiff_t offset = m_marker - marker;
+	std::byte* max = m_bytes + m_size;
+	if (marker < m_bytes || marker > max)
 		return;
 
-	std::memset(newMarker, 'U', offset);
-	m_marker = newMarker;
+	std::memset(marker, 'F', offset);
+	m_marker = marker;
+}
+
+inline void StackAllocator::Reset()
+{
+	std::memset(m_bytes, 'R', m_size);
+	m_marker = m_bytes;
 }

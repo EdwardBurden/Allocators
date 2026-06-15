@@ -1,7 +1,7 @@
 #include <iostream>
 #include <random>
 #include "StackAllocator.h"
-#include "DoubleEnded_StackAllocator.h"
+#include "DualStackAllocator.h"
 
 class Container
 {
@@ -22,41 +22,47 @@ int RandomInt(int min, int max)
 
 int main()
 {
-	StackAllocator stack(256);
-	Container* c[20];
-	//int bytes[20];
+	DualStackAllocator dualStack(1024);
+	auto s1 = dualStack.GetTopMarker();
+	auto p1 = dualStack.Allocate(16, StackArea::Top, 4);
+	Container* cc = new (p1) Container();
+	auto s2 = dualStack.GetTopMarker();
+	auto p2 = dualStack.Allocate(1, StackArea::Top);
 
-	stack.Allocate(7, 4);
-	stack.Allocate(1, 1);
-	stack.Allocate(17, 16);
+	dualStack.FreeToMarker(s2 , StackArea::Top);
+	dualStack.FreeToMarker(s1, StackArea::Top);
 
+
+
+		StackAllocator stack(256);
+	std::vector<std::byte*> ptrs;
+
+	ptrs.push_back(stack.Allocate(7));
+	ptrs.push_back(stack.Allocate(1));
+	ptrs.push_back(stack.Allocate(17));
+	ptrs.push_back(stack.Allocate(17, 3));
 
 	for (int i = 0; i < 20; i++)
 	{
-		//bytes[i] = RandomInt(0, 50);
-
-		auto ptr = stack.Allocate(sizeof(Container), alignof(Container));
+		auto ptr = stack.Allocate<Container>();
 		if (ptr != nullptr) {
-			c[i] = new (ptr) Container();
-			c[i]->a = '{';
-			c[i]->x = 6;
-			c[i]->y = 612.4;
-			c[i]->t = 'C';
+			auto container = new (ptr) Container();
+			container->a = '{';
+			container->x = 6;
+			container->y = 612.4;
+			container->t = 'C';
 		}
+		ptrs.push_back(ptr);
+		ptrs.push_back(stack.Allocate(1));
 	}
 
-	for (int i = 19; i >= 0; i--)
+	while (!ptrs.empty())
 	{
-		stack.FreeToMarker(reinterpret_cast<std::byte*>(c[i]));
+		stack.FreeToMarker(ptrs.back());
+		ptrs.pop_back();
 	}
 
-	/*DoubleEnded_StackAllocator de_stack(1024);
+	stack.Reset();
 
-	for (int i = 0; i < 100; i++)
-	{
-		auto rand= RandomInt(0, 50);
-		auto dir = RandomInt(0, 1);
-		auto ptr = de_stack.Allocate(rand, (StackDirection)dir);
-	}*/
 	return 0;
 }
