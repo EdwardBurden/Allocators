@@ -19,7 +19,6 @@ public:
 
 	std::byte* Allocate(size_t size, StackArea area, size_t alignment);
 	void FreeToMarker(std::byte* marker, StackArea area);
-	std::byte* GetTopMarker();
 private:
 	std::byte* AllocateTop(size_t size, size_t alignment);
 	std::byte* AllocateBottom(size_t size, size_t alignment);
@@ -71,17 +70,12 @@ inline void DualStackAllocator::FreeToMarker(std::byte* marker, StackArea area)
 
 inline std::byte* DualStackAllocator::AllocateTop(size_t size, size_t alignment)
 {
-	 AllocatorUtils::AllocateDown(m_topMarker, m_bytes, size, alignment);
-	 return m_topMarker;
+	return nullptr; //  AllocatorUtils::AllocateDown(m_topMarker, m_bytes, size, alignment);
+	// return m_topMarker;
 }
 
 inline std::byte* DualStackAllocator::AllocateBottom(size_t size, size_t alignment)
 {
 	std::byte* limit = m_bytes + m_size;
-	return AllocatorUtils::AllocateUp(m_bottomMarker, limit, size, alignment);
-}
-
-inline std::byte* DualStackAllocator::GetTopMarker() 
-{
-	return m_topMarker;
+	return nullptr; // return AllocatorUtils::AllocateUp(m_bottomMarker, limit, size, alignment);
 }

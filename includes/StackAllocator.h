@@ -6,7 +6,7 @@
 #include "AllocatorUtils.h"
 #include <cassert>
 
-class StackAllocator
+class StackAllocator //todo use header so we only rollback without suppliying marker
 {
 public:
 	StackAllocator(size_t size);
@@ -48,7 +48,7 @@ inline StackAllocator::~StackAllocator()
 inline std::byte* StackAllocator::Allocate(size_t size, size_t alignment = alignof(std::max_align_t))
 {
 	std::byte* limit = m_bytes + m_size;
-	return AllocatorUtils::AllocateUp(m_marker, limit, size, alignment);
+	return nullptr; // AllocatorUtils::AllocateUp(m_marker, limit, size, alignment);
 }
 
 inline void StackAllocator::FreeToMarker(std::byte* marker)
