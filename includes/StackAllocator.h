@@ -1,10 +1,8 @@
+// Simpliest version, allocates and padds but does not store allocations, so you must give a pointer to return too.
+// does not check its a valid pointer so can cuase issues returning to any point in the allocated memory.
+
 #pragma once
 #include <cstddef>
-#include <algorithm>
-#include <cstring>
-
-#include "AllocatorUtils.h"
-#include <cassert>
 
 class StackAllocator //todo use header so we only rollback without suppliying marker
 {
@@ -16,57 +14,14 @@ public:
 	StackAllocator& operator=(StackAllocator&& other) = delete;
 	~StackAllocator();
 
-	template<typename T>
-	std::byte* Allocate()
-	{
-		return Allocate(sizeof(T), alignof(T));
-	}
-
-	std::byte* Allocate(size_t size, size_t alignment);
-	void FreeToMarker(std::byte* marker);
+	inline const std::byte* GetMarker() const { return m_marker; };
+	void* Allocate(size_t size, const size_t alignment = alignof(std::max_align_t));
+	void FreeToMarker(void* marker);
 	void Reset();
 private:
 	static constexpr size_t MAX_STACK_SIZE = 1024 * 1024 * 8; // 8MB
 	size_t m_size;
 	std::byte* m_bytes;
 	std::byte* m_marker;
+	std::byte* m_limit;
 };
-
-inline StackAllocator::StackAllocator(size_t size)
-{
-	m_size = std::min(size, MAX_STACK_SIZE);
-	m_bytes = new std::byte[m_size];
-	m_marker = m_bytes;
-	std::memset(m_marker, 'U', m_size);
-}
-
-inline StackAllocator::~StackAllocator()
-{
-	delete[] m_bytes;
-}
-
-inline std::byte* StackAllocator::Allocate(size_t size, size_t alignment = alignof(std::max_align_t))
-{
-	std::byte* limit = m_bytes + m_size;
-	return nullptr; // AllocatorUtils::AllocateUp(m_marker, limit, size, alignment);
-}
-
-inline void StackAllocator::FreeToMarker(std::byte* marker)
-{
-	if (marker == nullptr)
-		return;
-
-	ptrdiff_t offset = m_marker - marker;
-	std::byte* max = m_bytes + m_size;
-	if (marker < m_bytes || marker > max)
-		return;
-
-	std::memset(marker, 'F', offset);
-	m_marker = marker;
-}
-
-inline void StackAllocator::Reset()
-{
-	std::memset(m_bytes, 'R', m_size);
-	m_marker = m_bytes;
-}

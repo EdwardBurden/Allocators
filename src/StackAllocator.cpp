@@ -1,8 +1,8 @@
 #include "AllocatorUtils.h"
-#include "LinearAllocator.h"
+#include "StackAllocator.h"
 #include <algorithm>
 
-LinearAllocator::LinearAllocator(const size_t size)
+StackAllocator::StackAllocator(size_t size)
 {
 	m_size = std::min(size, MAX_STACK_SIZE);
 	m_bytes = new std::byte[m_size];
@@ -11,12 +11,12 @@ LinearAllocator::LinearAllocator(const size_t size)
 	std::memset(m_marker, 'U', m_size);
 }
 
-LinearAllocator::~LinearAllocator()
+ StackAllocator::~StackAllocator()
 {
 	delete[] m_bytes;
 }
 
-void* LinearAllocator::Allocate(const size_t size, const size_t alignment)
+ void* StackAllocator::Allocate(size_t size, size_t alignment)
 {
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;
@@ -34,8 +34,22 @@ void* LinearAllocator::Allocate(const size_t size, const size_t alignment)
 	return static_cast<void*>(aligneMarker);
 }
 
-void LinearAllocator::Free()
+ void StackAllocator::FreeToMarker(void* marker)
 {
-	std::memset(m_bytes, 'F', m_size);
+	if (marker == nullptr)
+		return;
+
+	ptrdiff_t offset = m_marker - marker;
+	std::byte* max = m_bytes + m_size;
+	if (marker < m_bytes || marker > max)
+		return;
+
+	std::memset(marker, 'F', offset);
+	m_marker = static_cast<std::byte*>(marker);
+}
+
+ void StackAllocator::Reset()
+{
+	std::memset(m_bytes, 'R', m_size);
 	m_marker = m_bytes;
 }

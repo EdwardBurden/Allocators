@@ -1,3 +1,6 @@
+// Only allocate and free all
+// todo rename to arean allocator 
+
 #pragma once
 #include <cstddef>
 
@@ -11,8 +14,8 @@ public:
 	LinearAllocator& operator=(LinearAllocator&& other) = delete;
 	~LinearAllocator();
 
-	void* Allocate(const size_t size, const size_t alignment);
-	void Reset();
+	void* Allocate(const size_t size, const size_t alignment = alignof(std::max_align_t));
+	void Free();
 
 private:
 	static constexpr size_t MAX_STACK_SIZE = 1024 * 1024 * 8; // 8MB
