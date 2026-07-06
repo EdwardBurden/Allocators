@@ -1,8 +1,8 @@
 #include "AllocatorUtils.h"
-#include "StackAllocator.h"
+#include "ArenaAllocator.h"
 #include <algorithm>
 
-StackAllocator::StackAllocator(const size_t size)
+ArenaAllocator::ArenaAllocator(const size_t size)
 {
 	m_size = std::min(size, AllocatorUtils::MAX_STACK_SIZE);
 	m_bytes = new std::byte[m_size];
@@ -11,12 +11,12 @@ StackAllocator::StackAllocator(const size_t size)
 	std::memset(m_marker, 'U', m_size);
 }
 
-StackAllocator::~StackAllocator()
+ArenaAllocator::~ArenaAllocator()
 {
 	delete[] m_bytes;
 }
 
-void* StackAllocator::Allocate(const size_t size, const size_t alignment) //todo move this to the utils
+void* ArenaAllocator::Allocate(const size_t size, const size_t alignment)
 {
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;
@@ -34,21 +34,8 @@ void* StackAllocator::Allocate(const size_t size, const size_t alignment) //todo
 	return static_cast<void*>(alignedMarker);
 }
 
-void StackAllocator::FreeToMarker(std::byte* marker)
+void ArenaAllocator::Free()
 {
-	if (marker == nullptr)
-		return;
-
-	ptrdiff_t offset = m_marker - marker;
-	if (marker < m_bytes || marker > m_limit)
-		return;
-
-	std::memset(marker, 'F', offset);
-	m_marker = marker;
-}
-
-void StackAllocator::Reset()
-{
-	std::memset(m_bytes, 'R', m_size);
+	std::memset(m_bytes, 'F', m_size);
 	m_marker = m_bytes;
 }
