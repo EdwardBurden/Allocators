@@ -56,7 +56,19 @@ void test_dual_stack()
 void test_linked_stack()
 {
 	LinkedStackAllocator* linked = new LinkedStackAllocator(256);
+	linked->Allocate(1, 1);
+	linked->Allocate(1, 2);
+	linked->Allocate(2, 4);
+	linked->Allocate(2, 8);
+	linked->Allocate(2, 16);
+	linked->Allocate(2, 32);
+	linked->Allocate(2, 64);
 
+	while (!linked->IsEmpty())
+	{
+		linked->FreeLastMarker();
+
+	}
 
 }
 
