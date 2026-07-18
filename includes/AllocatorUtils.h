@@ -24,4 +24,6 @@ namespace AllocatorUtils
 		uintptr_t alignedAddress = AlignAddress(address, alignment);
 		ptr = reinterpret_cast<std::byte*>(alignedAddress);
 	}
+
+	//todo static inrange check method
 }

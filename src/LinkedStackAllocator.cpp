@@ -2,9 +2,10 @@
 #include "LinkedStackAllocator.h"
 #include <algorithm>
 
-LinkedStackAllocator::LinkedStackAllocator(size_t size)
+LinkedStackAllocator::LinkedStackAllocator(const size_t size, const bool forceLIFO)
 {
 	m_size = std::min(size, AllocatorUtils::MAX_STACK_SIZE);
+	m_forceLIFO = forceLIFO;
 	m_bytes = new std::byte[m_size];
 	m_marker = m_bytes;
 	m_header = m_bytes;
@@ -27,6 +28,7 @@ void* LinkedStackAllocator::Allocate(const size_t size, const size_t alignment)
 	AllocatorUtils::AlignPointer(alignedMarker, maxAlignment);
 	ptrdiff_t padding = alignedMarker - m_marker;
 	std::memset(m_marker, 'P', alignedMarker - m_marker);
+	std::memset(alignedMarker - sizeof(Header), 'H', sizeof(Header));
 	Header* header = reinterpret_cast<Header*>(alignedMarker - sizeof(Header));
 	header->offset = alignedMarker - sizeof(Header) - m_header; //store here the last allocated pointer(m_previousMarker), assign m_previousMarker = alignedMarker at the end too.
 	header->padding = alignedMarker - m_marker;
@@ -45,11 +47,35 @@ void LinkedStackAllocator::FreeLastMarker()
 	std::memset(m_marker, 'F', temp - m_marker);
 }
 
-void LinkedStackAllocator::FreeMarker(void* ptr) // find the pointer, then free free all
+void LinkedStackAllocator::Free(void* ptr) // find the pointer, then free free all
 {
-	auto temp = m_marker;
-	Header* header = reinterpret_cast<Header*>(m_header);
-	m_marker = m_header - (header->padding - sizeof(Header));
-	m_header = m_header - header->offset;
-	std::memset(m_marker, 'F', temp - m_marker);
+	//todo check null, and in range, m_forceLIFO
+	std::byte* marker = static_cast<std::byte*>(ptr);
+	bool found = false;
+	std::byte* headertarget = m_header;
+	std::byte* markerTarget;
+
+	while (!found && headertarget != nullptr)
+	{
+		Header* header = reinterpret_cast<Header*>(headertarget);
+		markerTarget = headertarget + sizeof(Header);
+		if (markerTarget == marker)
+		{
+			found = true;
+		}
+		else
+		{
+			headertarget = headertarget - header->offset;
+		}
+
+	}
+
+	if (found)
+	{
+		auto temp = m_marker;
+		Header* header = reinterpret_cast<Header*>(headertarget);
+		m_marker = headertarget - (header->padding - sizeof(Header));
+		m_header = headertarget - header->offset;
+		std::memset(m_marker, 'F', temp - m_marker);
+	}
 }

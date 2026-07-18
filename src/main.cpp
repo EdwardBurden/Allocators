@@ -2,6 +2,7 @@
 #include "StackAllocator.h"
 #include "DualStackAllocator.h"
 #include "LinkedStackAllocator.h"
+#include "PoolAllocator.h"
 #include <new>
 
 struct ExampleClass {
@@ -55,21 +56,42 @@ void test_dual_stack()
 
 void test_linked_stack()
 {
-	LinkedStackAllocator* linked = new LinkedStackAllocator(256);
-	linked->Allocate(1, 1);
-	linked->Allocate(1, 2);
+	LinkedStackAllocator* linked = new LinkedStackAllocator(256, false);
 	linked->Allocate(2, 4);
-	linked->Allocate(2, 8);
-	linked->Allocate(2, 16);
-	linked->Allocate(2, 32);
-	linked->Allocate(2, 64);
+	linked->Allocate(2, 4);
+auto t1 = linked->Allocate(2, 4);
+	linked->Allocate(2, 4);
+	linked->Allocate(2, 4);
+	linked->Allocate(2, 4);
+	auto ptr = 	linked->Allocate(2, 4);
 
-	while (!linked->IsEmpty())
-	{
-		linked->FreeLastMarker();
 
-	}
+	linked->Free(ptr);
+	linked->Allocate(2, 4);
+	linked->Allocate(2, 4);
+	linked->Free(t1);
+	linked->Allocate(2, 4);
+}
 
+void test_pool() 
+{
+	struct vector {
+		float x;
+		float y;
+		float z;
+	};
+
+	PoolAllocator<vector>* vectorPool = new PoolAllocator<vector>(10);
+	auto v1 = vectorPool->Allocate();
+	auto v2 = vectorPool->Allocate();
+	auto v3 = vectorPool->Allocate();
+	vectorPool->Free(v1);
+	vectorPool->Free(v3);
+	auto v4 = vectorPool->Allocate();
+	vectorPool->Free(v2);
+	auto v5 = vectorPool->Allocate();
+	auto v6 = vectorPool->Allocate();
+	auto v7 = vectorPool->Allocate();
 }
 
 
@@ -80,6 +102,7 @@ int main()
 	test_stack();
 	test_dual_stack();
 	test_linked_stack();
+	test_pool();
 
 	return 0;
 }

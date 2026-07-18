@@ -14,7 +14,7 @@ struct Header
 class LinkedStackAllocator
 {
 public:
-	LinkedStackAllocator(const size_t size);
+	LinkedStackAllocator(const size_t size, const bool forceLIFO);
 	LinkedStackAllocator(const LinkedStackAllocator& other) = delete;
 	LinkedStackAllocator& operator=(const LinkedStackAllocator& other) = delete;
 	LinkedStackAllocator(LinkedStackAllocator&& other) = delete;
@@ -25,7 +25,9 @@ public:
 	inline bool IsEmpty() const { return m_marker == m_bytes; };
 	void* Allocate(const size_t size, const size_t alignment = alignof(std::max_align_t));
 	void FreeLastMarker();
+	void Free(void*);
 private:
+	bool m_forceLIFO;
 	size_t m_size;
 	std::byte* m_bytes;
 	std::byte* m_marker;
