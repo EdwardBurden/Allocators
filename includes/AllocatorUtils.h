@@ -5,6 +5,12 @@
 namespace AllocatorUtils
 {
 	static size_t MAX_STACK_SIZE = 1024 * 1024 * 8; // 8MB
+	static size_t MAX_POOL_SIZE = 1024 * 1024 * 8; // 8MB
+
+	inline bool IsAligned(ptrdiff_t ptr, const size_t elementSize)
+	{
+		return ptr % elementSize == 0;
+	}
 
 	inline bool AddressIsPowerOf2(const size_t alignment)
 	{
@@ -25,5 +31,10 @@ namespace AllocatorUtils
 		ptr = reinterpret_cast<std::byte*>(alignedAddress);
 	}
 
-	//todo static inrange check method
+	template<typename T>
+	inline bool CheckMemoryBounds(T* ptr, const std::byte* minimum, const std::byte* maximum)
+	{
+		std::byte* pointer = reinterpret_cast<std::byte*>(ptr);
+		return pointer >= minimum && pointer <= maximum;
+	}
 }

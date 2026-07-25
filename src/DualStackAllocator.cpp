@@ -1,15 +1,21 @@
 #include "AllocatorUtils.h"
 #include "DualStackAllocator.h"
-#include <algorithm>
+
+#include <cstring>
+#include <stdexcept>
 
 DualStackAllocator::DualStackAllocator(const size_t size)
 {
-	m_size = std::min(size, AllocatorUtils::MAX_STACK_SIZE);
+	if (size > AllocatorUtils::MAX_STACK_SIZE)
+		throw std::runtime_error("Dual stack size in memory cannot be larger than MAX_STACK_SIZE");
+	m_size = size;
 	m_bytes = new std::byte[m_size];
 	m_topMarker = m_bytes + m_size;
 	m_bottomMarker = m_bytes;
 	m_limit = m_bytes + m_size;
+#ifndef NDEBUG
 	std::memset(m_bytes, 'U', m_size);
+#endif //NDEBUG
 }
 
 DualStackAllocator::~DualStackAllocator()
@@ -26,7 +32,6 @@ std::byte* DualStackAllocator::GetMarker(const StackArea area) const
 	case StackArea::Bottom:
 		return m_bottomMarker;
 	}
-
 }
 
 void* DualStackAllocator::Allocate(const size_t size, const StackArea area, const size_t alignment)
@@ -58,14 +63,19 @@ void* DualStackAllocator::AllocateTop(const size_t size, const size_t alignment)
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;
 
-	std::byte* alignedMarker = m_topMarker - size;
-	AllocatorUtils::AlignPointer(alignedMarker, alignment);
-	if (alignedMarker < m_bytes)
-		return nullptr;
-
-	std::memset(alignedMarker + size, 'P', (m_topMarker - size) - alignedMarker);
-	std::memset(alignedMarker, 'A', size);
-	m_topMarker = alignedMarker;
+	std::byte* alignedMarker = nullptr;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		alignedMarker = m_topMarker - size;
+		AllocatorUtils::AlignPointer(alignedMarker, alignment);
+		if (!AllocatorUtils::CheckMemoryBounds(alignedMarker, m_bytes, m_limit))
+			return nullptr;
+#ifndef NDEBUG
+		std::memset(alignedMarker + size, 'P', (m_topMarker - size) - alignedMarker);
+		std::memset(alignedMarker, 'A', size);
+#endif //NDEBUG
+		m_topMarker = alignedMarker;
+	}
 	return static_cast<void*>(alignedMarker);;
 }
 
@@ -74,16 +84,21 @@ void* DualStackAllocator::AllocateBottom(const size_t size, const size_t alignme
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;
 
-	std::byte* alignedMarker = m_bottomMarker + (alignment - 1);
-	AllocatorUtils::AlignPointer(alignedMarker, alignment);
+	std::byte* alignedMarker = nullptr;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		alignedMarker = m_bottomMarker + (alignment - 1);
+		AllocatorUtils::AlignPointer(alignedMarker, alignment);
 
-	if (alignedMarker + size > m_limit)
-		return nullptr;
+		if (!AllocatorUtils::CheckMemoryBounds(alignedMarker + size, m_bytes, m_limit))
+			return nullptr;
+#ifndef NDEBUG
+		std::memset(m_bottomMarker, 'P', alignedMarker - m_bottomMarker);
+		std::memset(alignedMarker, 'A', size);
+#endif //NDEBUG
 
-	std::memset(m_bottomMarker, 'P', alignedMarker - m_bottomMarker);
-	std::memset(alignedMarker, 'A', size);
-
-	m_bottomMarker = alignedMarker + size;
+		m_bottomMarker = alignedMarker + size;
+	}
 	return static_cast<void*>(alignedMarker);
 }
 
@@ -92,11 +107,14 @@ void DualStackAllocator::FreeTop(std::byte* marker)
 	if (marker == nullptr)
 		return;
 
-	if (marker < m_bytes || marker > m_limit)
+	if (!AllocatorUtils::CheckMemoryBounds(marker, m_bytes, m_limit))
 		return;
 
+	std::lock_guard<std::mutex> lock(m_mutex);
+#ifndef NDEBUG
 	ptrdiff_t offset = marker - m_topMarker;
 	std::memset(m_topMarker, 'F', offset);
+#endif //NDEBUG
 	m_topMarker = marker;
 }
 
@@ -105,10 +123,21 @@ void DualStackAllocator::FreeBottom(std::byte* marker)
 	if (marker == nullptr)
 		return;
 
-	if (marker < m_bytes || marker > m_limit)
+	if (!AllocatorUtils::CheckMemoryBounds(marker, m_bytes, m_limit))
 		return;
 
+	std::lock_guard<std::mutex> lock(m_mutex);
+#ifndef NDEBUG	
 	ptrdiff_t offset = m_bottomMarker - marker;
 	std::memset(marker, 'F', offset);
+#endif //NDEBUG
 	m_bottomMarker = marker;
+}
+
+void DualStackAllocator::Reset()
+{
+	Allocator::Reset();
+	std::lock_guard<std::mutex> lock(m_mutex);
+	m_topMarker = m_bytes + m_size;
+	m_bottomMarker = m_bytes;
 }

@@ -2,8 +2,7 @@
 // You can use this to rooll back to any valid marker.
 
 #pragma once
-#include <cstddef>
-#include <cstdint>
+#include "Allocator.h"
 
 struct Header
 {
@@ -11,26 +10,24 @@ struct Header
 	uint8_t padding; // the padding added before actual allocation.
 };
 
-class LinkedStackAllocator
+class LinkedStackAllocator : public Allocator
 {
 public:
-	LinkedStackAllocator(const size_t size, const bool forceLIFO);
+	LinkedStackAllocator(const size_t size);
 	LinkedStackAllocator(const LinkedStackAllocator& other) = delete;
 	LinkedStackAllocator& operator=(const LinkedStackAllocator& other) = delete;
 	LinkedStackAllocator(LinkedStackAllocator&& other) = delete;
 	LinkedStackAllocator& operator=(LinkedStackAllocator&& other) = delete;
 	~LinkedStackAllocator();
 
-	inline std::byte* GetMarker() const { return m_marker; };
 	inline bool IsEmpty() const { return m_marker == m_bytes; };
 	void* Allocate(const size_t size, const size_t alignment = alignof(std::max_align_t));
 	void FreeLastMarker();
-	void Free(void*);
+	void FreeMarker(void* marker);
+	void Reset() override;
 private:
-	bool m_forceLIFO;
-	size_t m_size;
-	std::byte* m_bytes;
+	void SetHeader(Header* header);
+
 	std::byte* m_marker;
-	std::byte* m_header;
-	std::byte* m_limit;
+	Header* m_header;
 };

@@ -1,10 +1,13 @@
-// Only allocate and free all
-// todo rename to arean allocator 
-
+/*
+ArenaAllocator.
+Simple allocator, you can allocate up to the limit but can only reset back to the start, no incremental freeing of allocations.
+The allocator will add padding so your memory requests are properly aligned.
+The allocator is thread-safe.
+*/
 #pragma once
-#include <cstddef>
+#include "Allocator.h"
 
-class ArenaAllocator
+class ArenaAllocator : public Allocator
 {
 public:
 	ArenaAllocator(const size_t size);
@@ -15,11 +18,8 @@ public:
 	~ArenaAllocator();
 
 	void* Allocate(const size_t size, const size_t alignment = alignof(std::max_align_t));
-	void Free();
+	void Reset() override;
 
 private:
-	size_t m_size;
-	std::byte* m_bytes;
 	std::byte* m_marker;
-	std::byte* m_limit;
 };

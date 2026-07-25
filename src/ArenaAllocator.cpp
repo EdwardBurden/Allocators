@@ -1,14 +1,20 @@
 #include "AllocatorUtils.h"
 #include "ArenaAllocator.h"
-#include <algorithm>
+
+#include <cstring>
+#include <stdexcept>
 
 ArenaAllocator::ArenaAllocator(const size_t size)
 {
-	m_size = std::min(size, AllocatorUtils::MAX_STACK_SIZE);
+	if (size > AllocatorUtils::MAX_STACK_SIZE)
+		throw std::runtime_error("Arena size in memory cannot be larger than MAX_STACK_SIZE");
+	m_size = size;
 	m_bytes = new std::byte[m_size];
 	m_marker = m_bytes;
 	m_limit = m_bytes + m_size;
+#ifndef NDEBUG
 	std::memset(m_marker, 'U', m_size);
+#endif //NDEBUG
 }
 
 ArenaAllocator::~ArenaAllocator()
@@ -21,21 +27,27 @@ void* ArenaAllocator::Allocate(const size_t size, const size_t alignment)
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;
 
-	std::byte* alignedMarker = m_marker + (alignment - 1);
-	AllocatorUtils::AlignPointer(alignedMarker, alignment);
+	std::byte* alignedMarker = nullptr;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		alignedMarker = m_marker + (alignment - 1);
+		AllocatorUtils::AlignPointer(alignedMarker, alignment);
 
-	if (alignedMarker + size > m_limit)
-		return nullptr;
+		if (!AllocatorUtils::CheckMemoryBounds(alignedMarker + size, m_bytes, m_limit))
+			return nullptr;
+#ifndef NDEBUG
+		std::memset(m_marker, 'P', alignedMarker - m_marker);
+		std::memset(alignedMarker, 'A', size);
+#endif //NDEBUG
 
-	std::memset(m_marker, 'P', alignedMarker - m_marker);
-	std::memset(alignedMarker, 'A', size);
-
-	m_marker = alignedMarker + size;
+		m_marker = alignedMarker + size;
+	}
 	return static_cast<void*>(alignedMarker);
 }
 
-void ArenaAllocator::Free()
+void ArenaAllocator::Reset()
 {
-	std::memset(m_bytes, 'F', m_size);
+	Allocator::Reset();
+	std::lock_guard<std::mutex> lock(m_mutex);
 	m_marker = m_bytes;
 }

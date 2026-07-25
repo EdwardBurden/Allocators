@@ -1,12 +1,17 @@
-// Simpliest version, allocates and padds but does not store allocations, so you must give a pointer to return too.
-// does not check its a valid pointer so can cuase issues returning to any point in the allocated memory.
-// use this by storing the marker and then allocate, use the marker as a point to return to.
-// do not use the pointer returned as the marker it is not the same thing.
+/*
+StackAllocator.
+Allows for allocating and deallocating parts of the memory block.
+The allocator will add padding so your memory requests are properly aligned.
+You must call GetMarker() to cache the curent marker before requesting allocations, then you use this marker to reset back.
+NO DOT USE THE RETURNED POINTER AS A MARKER.
+You can pass any pointer within the memory block back to reset to, meaning its up to the user to reset it properly.
+The allocator is thread-safe.
+*/
 
 #pragma once
-#include <cstddef>
+#include "Allocator.h"
 
-class StackAllocator //todo use header so we only rollback without suppliying marker
+class StackAllocator : public Allocator
 {
 public:
 	StackAllocator(const size_t size);
@@ -25,10 +30,7 @@ public:
 	inline std::byte* GetMarker() const { return m_marker; };
 	void* Allocate(const size_t size, const size_t alignment = alignof(std::max_align_t));
 	void FreeToMarker(std::byte* marker);
-	void Reset();
+	void Reset() override;
 private:
-	size_t m_size;
-	std::byte* m_bytes;
 	std::byte* m_marker;
-	std::byte* m_limit;
 };
