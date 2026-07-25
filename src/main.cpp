@@ -89,8 +89,6 @@ void test_linked_stack()
 
 void test_pool()
 {
-	//PoolAllocator<float>* floatPool = new PoolAllocator<float>(8);
-
 	struct vector
 	{
 		float x;

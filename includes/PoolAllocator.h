@@ -111,6 +111,12 @@ inline void PoolAllocator<T>::Reset()
 {
 	Allocator::Reset();
 	std::lock_guard<std::mutex> lock(m_mutex);
+	std::byte* element = m_bytes;
+	for (size_t i = 0; i < m_capacity; i++)
+	{
+		reinterpret_cast<T*>(element);
+	}
+
 	SetPoolElements();
 	m_freeElement = reinterpret_cast<T*>(m_bytes);
 }
