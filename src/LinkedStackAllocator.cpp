@@ -26,8 +26,10 @@ void* LinkedStackAllocator::Allocate(const size_t size, const size_t alignment)
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;
 
+	std::lock_guard<std::mutex> lock(m_mutex);
+
 	size_t maxAlignment = std::max(alignof(Header), alignment);
-	size_t headerSize = sizeof(Header);
+	size_t headerSize = sizeof(Header);	
 	std::byte* alignedMarker = m_marker + (maxAlignment - 1) + headerSize;
 	AllocatorUtils::AlignPointer(alignedMarker, maxAlignment);
 	if (!AllocatorUtils::CheckMemoryBounds(alignedMarker + size, m_bytes, m_limit))
@@ -47,11 +49,14 @@ void* LinkedStackAllocator::Allocate(const size_t size, const size_t alignment)
 #endif //NDEBUG
 	m_header = header;
 	m_marker = alignedMarker + size;
+
 	return static_cast<void*>(alignedMarker);
 }
 
 void LinkedStackAllocator::FreeLastMarker()
-{
+{	
+	std::lock_guard<std::mutex> lock(m_mutex);
+
 	if (IsEmpty())
 		return;
 
@@ -59,14 +64,16 @@ void LinkedStackAllocator::FreeLastMarker()
 }
 
 void LinkedStackAllocator::FreeMarker(void* ptr)
-{
-	if (IsEmpty())
-		return;
-
+{	
 	if (ptr == nullptr)
 		return;
 
+	std::lock_guard<std::mutex> lock(m_mutex);
+
 	if (!AllocatorUtils::CheckMemoryBounds(ptr, m_bytes, m_marker))
+		return;
+
+	if (IsEmpty())
 		return;
 
 	std::byte* marker = static_cast<std::byte*>(ptr);

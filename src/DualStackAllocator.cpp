@@ -58,7 +58,7 @@ void DualStackAllocator::FreeToMarker(std::byte* marker, const StackArea area)
 	}
 }
 
-void* DualStackAllocator::AllocateTop(const size_t size, const size_t alignment) //todo use the version in utils copied form stack
+void* DualStackAllocator::AllocateTop(const size_t size, const size_t alignment)
 {
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;
@@ -68,7 +68,10 @@ void* DualStackAllocator::AllocateTop(const size_t size, const size_t alignment)
 		std::lock_guard<std::mutex> lock(m_mutex);
 		alignedMarker = m_topMarker - size;
 		AllocatorUtils::AlignPointer(alignedMarker, alignment);
-		if (!AllocatorUtils::CheckMemoryBounds(alignedMarker, m_bytes, m_limit))
+		if (!AllocatorUtils::CheckMemoryBounds(alignedMarker, m_bottomMarker, m_limit))
+			return nullptr;
+
+		if (!AllocatorUtils::CheckMemoryBounds(alignedMarker + size, m_bottomMarker, m_limit))
 			return nullptr;
 #ifndef NDEBUG
 		std::memset(alignedMarker + size, 'P', (m_topMarker - size) - alignedMarker);
@@ -79,7 +82,7 @@ void* DualStackAllocator::AllocateTop(const size_t size, const size_t alignment)
 	return static_cast<void*>(alignedMarker);;
 }
 
-void* DualStackAllocator::AllocateBottom(const size_t size, const size_t alignment) //todo add to utils.
+void* DualStackAllocator::AllocateBottom(const size_t size, const size_t alignment)
 {
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;
@@ -90,7 +93,7 @@ void* DualStackAllocator::AllocateBottom(const size_t size, const size_t alignme
 		alignedMarker = m_bottomMarker + (alignment - 1);
 		AllocatorUtils::AlignPointer(alignedMarker, alignment);
 
-		if (!AllocatorUtils::CheckMemoryBounds(alignedMarker + size, m_bytes, m_limit))
+		if (!AllocatorUtils::CheckMemoryBounds(alignedMarker + size, m_bytes, m_topMarker))
 			return nullptr;
 #ifndef NDEBUG
 		std::memset(m_bottomMarker, 'P', alignedMarker - m_bottomMarker);

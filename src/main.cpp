@@ -13,11 +13,11 @@ struct ExampleClass {
 void test_arena()
 {
 	ArenaAllocator* linear = new ArenaAllocator(1024);
-	linear->Allocate(128, 16); // todo use examples
-	linear->Allocate(512, 9); // todo use examples
-	linear->Allocate(512, 4); // todo use examples
-	linear->Allocate(8); // todo use examples
-	linear->Reset(); // frees all
+	linear->Allocate(128, 16); 
+	linear->Allocate(512, 9); 
+	linear->Allocate(512, 4);
+	linear->Allocate(8); 
+	linear->Reset(); 
 	delete linear;
 }
 
@@ -41,20 +41,25 @@ void test_stack()
 
 void test_dual_stack()
 {
-	DualStackAllocator* dualStack = new DualStackAllocator(256);
-	auto m1 = dualStack->GetMarker(StackArea::Bottom);
-	int* intexample = static_cast<int*>(dualStack->Allocate(4, StackArea::Bottom));
-	intexample = static_cast<int*>(dualStack->Allocate<int>(StackArea::Bottom));
-	auto stackpointer = dualStack->Allocate<ExampleClass>(StackArea::Bottom);
-	ExampleClass* example = new (stackpointer) ExampleClass(5);
-	dualStack->FreeToMarker(m1, StackArea::Bottom);
-
-	m1 = dualStack->GetMarker(StackArea::Top);
-	auto l = dualStack->Allocate<long>(StackArea::Top);
-	l = dualStack->Allocate<char>(StackArea::Top);
-	l = dualStack->Allocate<int>(StackArea::Top);
-	dualStack->FreeToMarker(m1, StackArea::Top);
-	dualStack->Reset();
+	DualStackAllocator* dualStack = new DualStackAllocator(32);
+	auto bottom = dualStack->GetMarker(StackArea::Bottom);
+	auto top = dualStack->GetMarker(StackArea::Top);
+	dualStack->Allocate<uint32_t>(StackArea::Bottom);
+	dualStack->Allocate<char>(StackArea::Top);
+	dualStack->Allocate<char>(StackArea::Top);
+	dualStack->Allocate<char>(StackArea::Top);
+	dualStack->Allocate<char>(StackArea::Top);
+	auto beforepadding = dualStack->GetMarker(StackArea::Top);
+	dualStack->Allocate<uint64_t>(StackArea::Top);
+	dualStack->Allocate<uint32_t>(StackArea::Bottom);
+	dualStack->Allocate<uint32_t>(StackArea::Bottom);
+	dualStack->Allocate<uint32_t>(StackArea::Bottom);
+	dualStack->Allocate<uint32_t>(StackArea::Bottom);
+	dualStack->FreeToMarker(beforepadding, StackArea::Top);
+	 dualStack->Allocate<char>(StackArea::Bottom);
+	 dualStack->Allocate<char>(StackArea::Top);
+	dualStack->FreeToMarker(bottom, StackArea::Bottom);
+	dualStack->FreeToMarker(top, StackArea::Top);
 	delete  dualStack;
 
 }
@@ -77,8 +82,8 @@ void test_linked_stack()
 	linked->FreeLastMarker();
 	linked->FreeLastMarker();
 	linked->FreeLastMarker();
-	 linked->Allocate(4, 4);
-	 linked->Reset();
+	linked->Allocate(4, 4);
+	linked->Reset();
 	delete linked;
 }
 
@@ -109,7 +114,7 @@ void test_pool()
 	vectorPool->Free(v2);
 
 	auto v3 = vectorPool->Allocate(3);
-	std::byte* test = reinterpret_cast<std::byte*>(v1) +1;
+	std::byte* test = reinterpret_cast<std::byte*>(v1) + 1;
 	vectorPool->Free(reinterpret_cast<vector*>(test));
 	vectorPool->Free(v3);
 	auto v4 = vectorPool->Allocate(4);
@@ -132,7 +137,6 @@ void test_pool()
 
 int main()
 {
-	// todo expans tests with failure catching and proper examples
 	test_arena();
 	test_stack();
 	test_dual_stack();

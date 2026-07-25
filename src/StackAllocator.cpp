@@ -22,7 +22,7 @@ StackAllocator::~StackAllocator()
 	delete[] m_bytes;
 }
 
-void* StackAllocator::Allocate(const size_t size, const size_t alignment) //todo move this to the utils
+void* StackAllocator::Allocate(const size_t size, const size_t alignment)
 {
 	if (!AllocatorUtils::AddressIsPowerOf2(alignment))
 		return nullptr;

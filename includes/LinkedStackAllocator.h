@@ -1,5 +1,10 @@
-// This stack allocator will save the position of the previous marker before allocating the requirees space(with padding). This creates a linked list of headers which point back toward the base.
-// You can use this to rooll back to any valid marker.
+/*
+LinkedStackAllocator.
+This allocator works like the stack allocator but does not require the user to store th emarker position before allocating.
+Instead you can now allocate some space and pass back that same pointer as a marker to free it.
+A header is used to keep a lousy linked list of allocations so that you can roll back to any valid point, this will unallocate the blocks between though so bear that in mind.
+The allocator is thread-safe.
+*/
 
 #pragma once
 #include "Allocator.h"
